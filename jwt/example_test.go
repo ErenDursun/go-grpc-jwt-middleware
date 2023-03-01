@@ -29,6 +29,7 @@ func ExampleNewAuthFunc() {
 		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
 	)
+	defer svr.Stop()
 
 	grpc_health_v1.RegisterHealthServer(svr, &grpc_health_v1.UnimplementedHealthServer{})
 
@@ -76,6 +77,7 @@ func ExampleNewAuthFuncWithConfig() {
 		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
 	)
+	defer svr.Stop()
 
 	grpc_health_v1.RegisterHealthServer(svr, &grpc_health_v1.UnimplementedHealthServer{})
 

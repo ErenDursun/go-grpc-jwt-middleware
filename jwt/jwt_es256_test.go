@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"log"
 	"net"
 	"testing"
@@ -18,7 +20,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
@@ -31,13 +34,13 @@ type ES256TestSuite struct {
 	badAuthToken    string
 	brokenAuthToken string
 
-	helloReq  *grpc_health_v1.HealthCheckRequest
-	bufDialer func(context.Context, string) (net.Conn, error)
-	client    grpc_health_v1.HealthClient
-	// client2 pb.GreeterClient
+	healthCheckReq              *grpc_health_v1.HealthCheckRequest
+	bufDialer                   func(context.Context, string) (net.Conn, error)
+	client                      grpc_health_v1.HealthClient
+	clientWithPerRPCCredentials grpc_health_v1.HealthClient
+	clientTLSCreds              credentials.TransportCredentials
 }
 
-// TODO
 func (suite *ES256TestSuite) SetupSuite() {
 	claims := extJwt.MapClaims{
 		"foo": "bar",
@@ -56,10 +59,27 @@ func (suite *ES256TestSuite) SetupSuite() {
 		},
 	)
 
+	certPEM, keyPEM, err := generateCertAndKey([]string{"bufnet"})
+	if err != nil {
+		log.Fatalf("unable to generate test certificate/key: " + err.Error())
+	}
+
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(certPEM) {
+		suite.FailNow("failed to append certificate")
+	}
+	suite.clientTLSCreds = credentials.NewTLS(&tls.Config{ServerName: "bufnet", RootCAs: cp})
+
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		log.Fatalf("unable to load test TLS certificate: %v", err)
+	}
+	serverTLSCreds := credentials.NewServerTLSFromCert(&cert)
+
 	srvOpts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
-		// TODO add certs: https://go.dev/src/crypto/tls/generate_cert.go
+		grpc.Creds(serverTLSCreds),
 	}
 
 	srv := grpc.NewServer(srvOpts...)
@@ -87,11 +107,15 @@ func (suite *ES256TestSuite) SetupSuite() {
 		return lis.Dial()
 	}
 
-	suite.helloReq = &grpc_health_v1.HealthCheckRequest{}
+	suite.healthCheckReq = &grpc_health_v1.HealthCheckRequest{}
 }
 
 func (suite *ES256TestSuite) SetupTest() {
-	conn, err := grpc.DialContext(context.TODO(), "bufnet", grpc.WithContextDialer(suite.bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	dialOpts := []grpc.DialOption{
+		grpc.WithContextDialer(suite.bufDialer),
+		grpc.WithTransportCredentials(suite.clientTLSCreds),
+	}
+	conn, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts...)
 	if err != nil {
 		suite.FailNowf("failed to dial bufnet", "%w", err)
 	}
@@ -99,13 +123,18 @@ func (suite *ES256TestSuite) SetupTest() {
 	suite.client = grpc_health_v1.NewHealthClient(conn)
 
 	// client with per RPC credentials
-	// grpcCreds := oauth.TokenSource{TokenSource: &fakeOAuth2TokenSource{accessToken: goodAuthToken}}
-	// conn2, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithPerRPCCredentials(grpcCreds))
-	// if err != nil {
-	// 	t.Fatalf("Failed to dial bufnet: %v", err)
-	// }
+	grpcCreds := oauth.TokenSource{TokenSource: &fakeOAuth2TokenSource{accessToken: suite.goodAuthToken}}
+	dialOpts2 := []grpc.DialOption{
+		grpc.WithContextDialer(suite.bufDialer),
+		grpc.WithTransportCredentials(suite.clientTLSCreds),
+		grpc.WithPerRPCCredentials(grpcCreds),
+	}
+	conn2, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts2...)
+	if err != nil {
+		suite.FailNowf("failed to dial bufnet:", "%w", err)
+	}
 	// defer conn2.Close()
-	// suite.client2 := pb.NewGreeterClient(conn2)
+	suite.clientWithPerRPCCredentials = grpc_health_v1.NewHealthClient(conn2)
 }
 
 func TestES256TestSuite(t *testing.T) {
@@ -116,7 +145,7 @@ func (suite *ES256TestSuite) TestUnary_NoAuth() {
 	// given
 
 	// when
-	_, err := suite.client.Check(context.TODO(), suite.helloReq)
+	_, err := suite.client.Check(context.TODO(), suite.healthCheckReq)
 
 	// then
 	assert.Error(suite.T(), err, "there must be an error")
@@ -127,7 +156,7 @@ func (suite *ES256TestSuite) TestUnary_BrokenAuth() {
 	// given
 
 	// when
-	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.brokenAuthToken), suite.helloReq)
+	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.brokenAuthToken), suite.healthCheckReq)
 
 	// then
 	assert.Error(suite.T(), err, "there must be an error")
@@ -138,7 +167,7 @@ func (suite *ES256TestSuite) TestUnary_BadAuth() {
 	// given
 
 	// when
-	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.badAuthToken), suite.helloReq)
+	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.badAuthToken), suite.healthCheckReq)
 
 	// then
 	assert.Error(suite.T(), err, "there must be an error")
@@ -149,17 +178,18 @@ func (suite *ES256TestSuite) TestUnary_GoodAuth() {
 	// given
 
 	// when
-	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.goodAuthToken), suite.helloReq)
+	_, err := suite.client.Check(ctxWithToken(context.TODO(), "bearer", suite.goodAuthToken), suite.healthCheckReq)
 
 	// then
 	require.NoError(suite.T(), err, "no error must occur")
 }
 
-// func (s *ES256TestSuite) TestUnary_GoodAuthWithPerRpcCredentials() {
-// 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-// 	signedToken, _ := token.SignedString(s.key)
-// 	grpcCreds := oauth.TokenSource{TokenSource: &fakeOAuth2TokenSource{accessToken: signedToken}}
-// 	client := s.NewClient(grpc.WithPerRPCCredentials(grpcCreds))
-// 	_, err := client.SayHello(context.TODO(), helloReq)
-// 	require.NoError(s.T(), err, "no error must occur")
-// }
+func (s *ES256TestSuite) TestUnary_GoodAuthWithPerRpcCredentials() {
+	// given
+
+	// when
+	_, err := s.clientWithPerRPCCredentials.Check(context.TODO(), s.healthCheckReq)
+
+	// then
+	require.NoError(s.T(), err, "no error must occur")
+}

@@ -2,6 +2,8 @@ package jwt_test
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"log"
 	"net"
 	"testing"
@@ -15,7 +17,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
@@ -29,10 +31,11 @@ type HMACTestSuite struct {
 	badAuthToken    string
 	brokenAuthToken string
 
-	healthCheckReq *grpc_health_v1.HealthCheckRequest
-	bufDialer      func(context.Context, string) (net.Conn, error)
-	client         grpc_health_v1.HealthClient
-	client2        grpc_health_v1.HealthClient
+	healthCheckReq              *grpc_health_v1.HealthCheckRequest
+	bufDialer                   func(context.Context, string) (net.Conn, error)
+	client                      grpc_health_v1.HealthClient
+	clientWithPerRPCCredentials grpc_health_v1.HealthClient
+	clientTLSCreds              credentials.TransportCredentials
 }
 
 func (suite *HMACTestSuite) SetupSuite() {
@@ -46,10 +49,27 @@ func (suite *HMACTestSuite) SetupSuite() {
 
 	authFunc := jwt.NewAuthFunc([]byte("good_secret"))
 
+	certPEM, keyPEM, err := generateCertAndKey([]string{"bufnet"})
+	if err != nil {
+		log.Fatalf("unable to generate test certificate/key: " + err.Error())
+	}
+
+	cp := x509.NewCertPool()
+	if !cp.AppendCertsFromPEM(certPEM) {
+		suite.FailNow("failed to append certificate")
+	}
+	suite.clientTLSCreds = credentials.NewTLS(&tls.Config{ServerName: "bufnet", RootCAs: cp})
+
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		log.Fatalf("unable to load test TLS certificate: %v", err)
+	}
+	serverTLSCreds := credentials.NewServerTLSFromCert(&cert)
+
 	srvOpts := []grpc.ServerOption{
 		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
-		// TODO add certs: https://go.dev/src/crypto/tls/generate_cert.go
+		grpc.Creds(serverTLSCreds),
 	}
 
 	srv := grpc.NewServer(srvOpts...)
@@ -81,7 +101,11 @@ func (suite *HMACTestSuite) SetupSuite() {
 }
 
 func (suite *HMACTestSuite) SetupTest() {
-	conn, err := grpc.DialContext(context.TODO(), "bufnet", grpc.WithContextDialer(suite.bufDialer), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	dialOpts := []grpc.DialOption{
+		grpc.WithContextDialer(suite.bufDialer),
+		grpc.WithTransportCredentials(suite.clientTLSCreds),
+	}
+	conn, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts...)
 	if err != nil {
 		suite.FailNowf("failed to dial bufnet", "%w", err)
 	}
@@ -90,22 +114,17 @@ func (suite *HMACTestSuite) SetupTest() {
 
 	// client with per RPC credentials
 	grpcCreds := oauth.TokenSource{TokenSource: &fakeOAuth2TokenSource{accessToken: suite.goodAuthToken}}
-	newDialOpts := []grpc.DialOption{
+	dialOpts2 := []grpc.DialOption{
 		grpc.WithContextDialer(suite.bufDialer),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(suite.clientTLSCreds),
 		grpc.WithPerRPCCredentials(grpcCreds),
-		grpc.WithBlock(),
 	}
-	conn2, err := grpc.DialContext(context.TODO(), "bufnet", newDialOpts...)
+	conn2, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts2...)
 	if err != nil {
 		suite.FailNowf("failed to dial bufnet:", "%w", err)
 	}
 	// defer conn2.Close()
-	suite.client2 = grpc_health_v1.NewHealthClient(conn2)
-}
-
-func (suite *HMACTestSuite) TearDownSuite() {
-	// TODO
+	suite.clientWithPerRPCCredentials = grpc_health_v1.NewHealthClient(conn2)
 }
 
 func TestHMACTestSuite(t *testing.T) {
@@ -156,7 +175,12 @@ func (suite *HMACTestSuite) TestUnary_GoodAuth() {
 }
 
 func (s *HMACTestSuite) TestUnary_GoodAuthWithPerRpcCredentials() {
-	_, err := s.client2.Check(context.TODO(), s.healthCheckReq)
+	// given
+
+	// when
+	_, err := s.clientWithPerRPCCredentials.Check(context.TODO(), s.healthCheckReq)
+
+	// then
 	require.NoError(s.T(), err, "no error must occur")
 }
 
@@ -187,17 +211,15 @@ func (s *HMACTestSuite) TestStream_BadAuth() {
 func (s *HMACTestSuite) TestStream_GoodAuth() {
 	stream, err := s.client.Watch(ctxWithToken(context.TODO(), "Bearer", s.goodAuthToken), s.healthCheckReq)
 	require.NoError(s.T(), err, "should not fail on establishing the stream")
-	pong, err := stream.Recv()
+	healthResponse, err := stream.Recv()
 	require.NoError(s.T(), err, "no error must occur")
-	require.NotNil(s.T(), pong, "pong must not be nil")
+	require.NotNil(s.T(), healthResponse, "healthResponse must not be nil")
 }
 
-// func (s *HMACTestSuite) TestStream_GoodAuthWithPerRpcCredentials() {
-// 	grpcCreds := oauth.TokenSource{TokenSource: &fakeOAuth2TokenSource{accessToken: s.goodAuthToken}}
-// 	client := s.NewClient(grpc.WithPerRPCCredentials(grpcCreds))
-// 	stream, err := client.PingList(context.TODO(), s.healthCheckReq)
-// 	require.NoError(s.T(), err, "should not fail on establishing the stream")
-// 	pong, err := stream.Recv()
-// 	require.NoError(s.T(), err, "no error must occur")
-// 	require.NotNil(s.T(), pong, "pong must not be nil")
-// }
+func (s *HMACTestSuite) TestStream_GoodAuthWithPerRpcCredentials() {
+	stream, err := s.clientWithPerRPCCredentials.Watch(context.TODO(), s.healthCheckReq)
+	require.NoError(s.T(), err, "should not fail on establishing the stream")
+	healthResponse, err := stream.Recv()
+	require.NoError(s.T(), err, "no error must occur")
+	require.NotNil(s.T(), healthResponse, "healthResponse must not be nil")
+}
