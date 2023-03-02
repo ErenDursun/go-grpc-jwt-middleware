@@ -1,5 +1,7 @@
 # Go gRPC JWT Auth Middleware
 
+A simple JWT authentication middleware for gRPC based on [grpc-ecosystem/go-grpc-middleware](https://github.com/grpc-ecosystem/go-grpc-middleware) and [golang-jwt/jwt](https://github.com/golang-jwt/jwt).
+
 ## Examples
 
 Full examples can be found in [example_test.go](jwt/example_test.go).
