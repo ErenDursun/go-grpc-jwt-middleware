@@ -21,13 +21,13 @@ type Config struct {
 	// This is one of the three options to provide a token validation key.
 	// The order of precedence is a user-defined KeyFunc, SigningKeys and SigningKey.
 	// Claims will be accepted without verification, if neither user-defined KeyFunc nor SigningKey nor SigningKeys is provided.
-	SigningKey interface{}
+	SigningKey any
 
 	// Map of signing keys to validate token with kid field usage.
 	// This is one of the three options to provide a token validation key.
 	// The order of precedence is a user-defined KeyFunc, SigningKeys and SigningKey.
 	// Claims will be accepted without verification, if neither user-defined KeyFunc nor SigningKey nor SigningKeys is provided.
-	SigningKeys map[string]interface{}
+	SigningKeys map[string]any
 
 	// Signing method used to check the token's signing algorithm.
 	// Optional. Default value HS256.
@@ -53,7 +53,7 @@ type Config struct {
 	// ParseTokenFunc defines a user-defined function that parses token from given auth. Returns an error when token
 	// parsing fails or parsed token is invalid.
 	// Defaults to implementation using `github.com/golang-jwt/jwt` as JWT implementation library
-	ParseTokenFunc func(c context.Context, auth string) (interface{}, error)
+	ParseTokenFunc func(c context.Context, auth string) (any, error)
 
 	// Claims are extendable claims data defining token content. Used by default ParseTokenFunc implementation.
 	// Not used if custom ParseTokenFunc is set.
@@ -67,7 +67,7 @@ const (
 	DefaultContextKey ContextKey = "user"
 )
 
-func NewAuthFunc(signingKey interface{}) grpc_auth.AuthFunc {
+func NewAuthFunc(signingKey any) grpc_auth.AuthFunc {
 	return NewAuthFuncWithConfig(Config{SigningKey: signingKey})
 }
 
@@ -114,7 +114,7 @@ func (config *Config) setDefaults() {
 	}
 }
 
-func (config *Config) defaultKeyFunc(token *jwt.Token) (interface{}, error) {
+func (config *Config) defaultKeyFunc(token *jwt.Token) (any, error) {
 	if token.Method.Alg() != config.SigningMethod {
 		return nil, status.Errorf(codes.Unauthenticated, "unexpected jwt signing method=%v", token.Header["alg"])
 	}
@@ -129,7 +129,7 @@ func (config *Config) defaultKeyFunc(token *jwt.Token) (interface{}, error) {
 	return nil, status.Errorf(codes.Unauthenticated, "unexpected jwt key id=%v", token.Header["kid"])
 }
 
-func (config *Config) defaultParseTokenFunc(c context.Context, auth string) (interface{}, error) {
+func (config *Config) defaultParseTokenFunc(c context.Context, auth string) (any, error) {
 	token, err := jwt.ParseWithClaims(auth, config.NewClaimsFunc(c), config.KeyFunc)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
@@ -140,7 +140,7 @@ func (config *Config) defaultParseTokenFunc(c context.Context, auth string) (int
 	return token, nil
 }
 
-func (config *Config) defaultParseTokenFuncWithoutVerify(c context.Context, auth string) (interface{}, error) {
+func (config *Config) defaultParseTokenFuncWithoutVerify(c context.Context, auth string) (any, error) {
 	token, _, err := jwt.NewParser().ParseUnverified(auth, config.NewClaimsFunc(c))
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
