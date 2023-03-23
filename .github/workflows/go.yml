@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        go get .
+        go mod download
 
     - name: Test
       run: go test -v ./...
