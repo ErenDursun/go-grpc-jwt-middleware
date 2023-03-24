@@ -1,5 +1,7 @@
 # Go gRPC JWT Auth Middleware
 
+![Go workflow](https://github.com/ErenDursun/go-grpc-jwt-middleware/actions/workflows/go.yml/badge.svg)
+
 A simple JWT authentication middleware for gRPC based on [grpc-ecosystem/go-grpc-middleware](https://github.com/grpc-ecosystem/go-grpc-middleware) and [golang-jwt/jwt](https://github.com/golang-jwt/jwt).
 
 ## Examples
