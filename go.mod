@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/stretchr/testify v1.8.3
 	golang.org/x/oauth2 v0.8.0
 	google.golang.org/grpc v1.55.0
