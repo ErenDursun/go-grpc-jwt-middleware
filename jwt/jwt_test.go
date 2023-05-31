@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/health/grpc_health_v1"

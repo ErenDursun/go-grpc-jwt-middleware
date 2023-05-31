@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
-	extJwt "github.com/golang-jwt/jwt/v4"
+	extJwt "github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
 	"google.golang.org/grpc"

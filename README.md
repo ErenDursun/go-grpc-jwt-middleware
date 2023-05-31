@@ -50,7 +50,7 @@ import (
 	"net"
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
-	extJwt "github.com/golang-jwt/jwt/v4"
+	extJwt "github.com/golang-jwt/jwt/v5"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
