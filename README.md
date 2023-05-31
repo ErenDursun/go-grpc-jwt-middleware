@@ -9,7 +9,7 @@ A simple JWT authentication middleware for gRPC based on [grpc-ecosystem/go-grpc
 Full examples can be found in [example_test.go](jwt/example_test.go).
 
 ### 'HMAC' Authentication
-```
+```go
 package main
 
 import (
@@ -40,7 +40,7 @@ func main() {
 ```
 
 ### 'ES256' Authentication
-```
+```go
 package main
 
 import (
