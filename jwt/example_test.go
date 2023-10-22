@@ -11,8 +11,8 @@ import (
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
 	extJwt "github.com/golang-jwt/jwt/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+	metautils "github.com/grpc-ecosystem/go-grpc-middleware/v2/metadata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -26,8 +26,8 @@ func ExampleNewAuthFunc() {
 	// server
 	authFunc := jwt.NewAuthFunc(secret)
 	svr := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
+		grpc.StreamInterceptor(auth.StreamServerInterceptor(authFunc)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authFunc)),
 	)
 	defer svr.Stop()
 
@@ -50,8 +50,8 @@ func ExampleNewAuthFunc() {
 	token := extJwt.NewWithClaims(extJwt.SigningMethodHS256, claims)
 	signedToken, _ := token.SignedString(secret)
 
-	md := metadata.Pairs("authorization", fmt.Sprintf("%s %v", "Bearer", signedToken))
-	ctxWithToken := metautils.NiceMD(md).ToOutgoing(context.TODO())
+	grpcMD := metadata.Pairs("authorization", fmt.Sprintf("%s %v", "Bearer", signedToken))
+	ctxWithToken := metautils.MD(grpcMD).ToOutgoing(context.TODO())
 
 	conn, _ := grpc.Dial("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer conn.Close()
@@ -74,8 +74,8 @@ func ExampleNewAuthFuncWithConfig() {
 		},
 	)
 	svr := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
+		grpc.StreamInterceptor(auth.StreamServerInterceptor(authFunc)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authFunc)),
 	)
 	defer svr.Stop()
 
@@ -98,8 +98,8 @@ func ExampleNewAuthFuncWithConfig() {
 	token := extJwt.NewWithClaims(extJwt.SigningMethodES256, claims)
 	signedToken, _ := token.SignedString(key)
 
-	md := metadata.Pairs("authorization", fmt.Sprintf("%s %v", "Bearer", signedToken))
-	ctxWithToken := metautils.NiceMD(md).ToOutgoing(context.TODO())
+	grpcMD := metadata.Pairs("authorization", fmt.Sprintf("%s %v", "Bearer", signedToken))
+	ctxWithToken := metautils.MD(grpcMD).ToOutgoing(context.TODO())
 
 	conn, _ := grpc.Dial("localhost:8080", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	defer conn.Close()

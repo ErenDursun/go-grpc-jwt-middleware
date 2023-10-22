@@ -14,7 +14,7 @@ import (
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
 	extJwt "github.com/golang-jwt/jwt/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -77,8 +77,8 @@ func (suite *ES256TestSuite) SetupSuite() {
 	serverTLSCreds := credentials.NewServerTLSFromCert(&cert)
 
 	srvOpts := []grpc.ServerOption{
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
+		grpc.StreamInterceptor(auth.StreamServerInterceptor(authFunc)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authFunc)),
 		grpc.Creds(serverTLSCreds),
 	}
 

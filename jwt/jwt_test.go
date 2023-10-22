@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/grpc-ecosystem/go-grpc-middleware/util/metautils"
+	metautils "github.com/grpc-ecosystem/go-grpc-middleware/v2/metadata"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
@@ -46,8 +46,8 @@ func newSignedToken(method jwt.SigningMethod, claims jwt.Claims, secret any) str
 }
 
 func ctxWithToken(ctx context.Context, scheme string, token string) context.Context {
-	md := metadata.Pairs("authorization", fmt.Sprintf("%s %v", scheme, token))
-	nCtx := metautils.NiceMD(md).ToOutgoing(ctx)
+	grpcMD := metadata.Pairs("authorization", fmt.Sprintf("%s %v", scheme, token))
+	nCtx := metautils.MD(grpcMD).ToOutgoing(ctx)
 	return nCtx
 }
 

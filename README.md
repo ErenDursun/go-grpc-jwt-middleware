@@ -2,7 +2,7 @@
 
 ![Go workflow](https://github.com/ErenDursun/go-grpc-jwt-middleware/actions/workflows/go.yml/badge.svg)
 
-A simple JWT authentication middleware for gRPC based on [grpc-ecosystem/go-grpc-middleware](https://github.com/grpc-ecosystem/go-grpc-middleware) and [golang-jwt/jwt](https://github.com/golang-jwt/jwt).
+A simple JWT authentication middleware for gRPC based on [grpc-ecosystem/go-grpc-middleware](https://github.com/grpc-ecosystem/go-grpc-middleware/v2) and [golang-jwt/jwt](https://github.com/golang-jwt/jwt).
 
 ## Examples
 
@@ -16,7 +16,7 @@ import (
 	"net"
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -27,8 +27,8 @@ func main() {
 	authFunc := jwt.NewAuthFunc(secret)
 
 	svr := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
+		grpc.StreamInterceptor(auth.StreamServerInterceptor(authFunc)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authFunc)),
 	)
 
 	grpc_health_v1.RegisterHealthServer(svr, &grpc_health_v1.UnimplementedHealthServer{})
@@ -51,7 +51,7 @@ import (
 
 	"github.com/ErenDursun/go-grpc-jwt-middleware/jwt"
 	extJwt "github.com/golang-jwt/jwt/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -67,8 +67,8 @@ func main() {
 	)
 
 	svr := grpc.NewServer(
-		grpc.StreamInterceptor(grpc_auth.StreamServerInterceptor(authFunc)),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),
+		grpc.StreamInterceptor(auth.StreamServerInterceptor(authFunc)),
+		grpc.UnaryInterceptor(auth.UnaryServerInterceptor(authFunc)),
 	)
 
 	grpc_health_v1.RegisterHealthServer(svr, &grpc_health_v1.UnimplementedHealthServer{})

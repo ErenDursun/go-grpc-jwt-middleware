@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/golang-jwt/jwt/v5"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -67,14 +67,14 @@ const (
 	DefaultContextKey ContextKey = "user"
 )
 
-func NewAuthFunc(signingKey any) grpc_auth.AuthFunc {
+func NewAuthFunc(signingKey any) auth.AuthFunc {
 	return NewAuthFuncWithConfig(Config{SigningKey: signingKey})
 }
 
-func NewAuthFuncWithConfig(config Config) grpc_auth.AuthFunc {
+func NewAuthFuncWithConfig(config Config) auth.AuthFunc {
 	config.setDefaults()
 	return func(c context.Context) (context.Context, error) {
-		auth, err := grpc_auth.AuthFromMD(c, config.AuthScheme)
+		auth, err := auth.AuthFromMD(c, config.AuthScheme)
 		if err != nil {
 			return nil, err
 		}
