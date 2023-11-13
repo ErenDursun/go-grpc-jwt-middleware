@@ -3,7 +3,7 @@ module github.com/ErenDursun/go-grpc-jwt-middleware
 go 1.21
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/oauth2 v0.13.0
