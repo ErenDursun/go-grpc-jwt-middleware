@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.1
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/oauth2 v0.20.0
 	google.golang.org/grpc v1.61.0
 )
