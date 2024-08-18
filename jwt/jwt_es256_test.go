@@ -59,7 +59,7 @@ func (suite *ES256TestSuite) SetupSuite() {
 		},
 	)
 
-	certPEM, keyPEM, err := generateCertAndKey([]string{"bufnet"})
+	certPEM, keyPEM, err := generateCertAndKey([]string{"localhost"})
 	if err != nil {
 		log.Fatalf("unable to generate test certificate/key: " + err.Error())
 	}
@@ -68,7 +68,7 @@ func (suite *ES256TestSuite) SetupSuite() {
 	if !cp.AppendCertsFromPEM(certPEM) {
 		suite.FailNow("failed to append certificate")
 	}
-	suite.clientTLSCreds = credentials.NewTLS(&tls.Config{ServerName: "bufnet", RootCAs: cp})
+	suite.clientTLSCreds = credentials.NewTLS(&tls.Config{ServerName: "localhost", RootCAs: cp})
 
 	cert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
@@ -115,9 +115,9 @@ func (suite *ES256TestSuite) SetupTest() {
 		grpc.WithContextDialer(suite.bufDialer),
 		grpc.WithTransportCredentials(suite.clientTLSCreds),
 	}
-	conn, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts...)
+	conn, err := grpc.NewClient("localhost", dialOpts...)
 	if err != nil {
-		suite.FailNowf("failed to dial bufnet", "%w", err)
+		suite.FailNowf("failed to dial localhost", "%w", err)
 	}
 	// defer conn.Close()
 	suite.client = grpc_health_v1.NewHealthClient(conn)
@@ -129,9 +129,9 @@ func (suite *ES256TestSuite) SetupTest() {
 		grpc.WithTransportCredentials(suite.clientTLSCreds),
 		grpc.WithPerRPCCredentials(grpcCreds),
 	}
-	conn2, err := grpc.DialContext(context.TODO(), "bufnet", dialOpts2...)
+	conn2, err := grpc.NewClient("localhost", dialOpts2...)
 	if err != nil {
-		suite.FailNowf("failed to dial bufnet:", "%w", err)
+		suite.FailNowf("failed to dial localhost:", "%w", err)
 	}
 	// defer conn2.Close()
 	suite.clientWithPerRPCCredentials = grpc_health_v1.NewHealthClient(conn2)
