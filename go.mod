@@ -1,12 +1,11 @@
 module github.com/ErenDursun/go-grpc-jwt-middleware
 
 go 1.23
-
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.2.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/oauth2 v0.26.0
+	golang.org/x/oauth2 v0.28.0
 	google.golang.org/grpc v1.70.0
 )
 
