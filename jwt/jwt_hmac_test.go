@@ -51,7 +51,7 @@ func (suite *HMACTestSuite) SetupSuite() {
 
 	certPEM, keyPEM, err := generateCertAndKey([]string{"localhost"})
 	if err != nil {
-		log.Fatalf("unable to generate test certificate/key: " + err.Error())
+		log.Fatalf("unable to generate test certificate/key: %v", err.Error())
 	}
 
 	cp := x509.NewCertPool()
